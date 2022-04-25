@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/pkg/profile"
@@ -19,47 +20,59 @@ func main() {
 	httpUA := &httpUserAgent{}
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify:     false,
+		InsecureSkipVerify:     true,
 		SessionTicketsDisabled: false,
 	}
 
-	tlsConfig.MinVersion = tls.VersionTLS12
-	tlsConfig.CipherSuites = []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-	}
+	tlsConfig.MinVersion = tls.VersionTLS13
+	// tlsConfig.CipherSuites = []uint16{
+	// 	tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	// 	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	// 	tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	// 	tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	// 	tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+	// 	tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	// }
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		Transport: httpUA.httpSetUserAgent(&http.Transport{
 			DisableKeepAlives:   false,
 			IdleConnTimeout:     300 * time.Second,
+			MaxIdleConns:        128,
 			MaxIdleConnsPerHost: 128,
 			TLSClientConfig:     tlsConfig,
 			DisableCompression:  false,
+			ForceAttemptHTTP2:   true,
 		}),
 	}
 
-	request, err := http.NewRequest("GET", "https://playmytime.com/", nil)
+	request, err := http.NewRequest("GET", "http://playmytime.com/", nil)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	response, err := client.Do(request)
-	if err != nil {
-		fmt.Println(err)
-		return
+	responsePool := sync.Pool{
+		New: func() interface{} {
+			return new(http.Response)
+		},
 	}
-	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		fmt.Println(response.Status)
-		return
+	for i := 1; i < 100; i++ {
+		response := responsePool.Get().(*http.Response)
+
+		response, err = client.Do(request)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			fmt.Println(response.Status)
+			continue
+		}
 	}
 }
 
