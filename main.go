@@ -19,7 +19,8 @@ func main() {
 	httpUA := &httpUserAgent{}
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: false,
+		InsecureSkipVerify:     false,
+		SessionTicketsDisabled: false,
 	}
 
 	tlsConfig.MinVersion = tls.VersionTLS12
