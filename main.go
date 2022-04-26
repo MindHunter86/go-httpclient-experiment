@@ -25,11 +25,15 @@ func main() {
 	// 	tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 	// }
 
+	// defaultTransportDialContext := func(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
+	// 	return dialer.DialContext
+	// }
+
 	var wait sync.WaitGroup
 	for k := 0; k < 10; k++ {
 		wait.Add(1)
 		go func() {
-			httpUA := &httpUserAgent{}
+			// httpUA := &httpUserAgent{}
 
 			tlsConfig := &tls.Config{
 				InsecureSkipVerify:     true,
@@ -40,33 +44,37 @@ func main() {
 
 			client := &http.Client{
 				Timeout: 10 * time.Second,
-				Transport: httpUA.httpSetUserAgent(&http.Transport{
+				// Transport: httpUA.httpSetUserAgent(&http.Transport{
+				Transport: &http.Transport{
 					DisableKeepAlives:   false,
 					IdleConnTimeout:     300 * time.Second,
 					MaxIdleConns:        128,
 					MaxIdleConnsPerHost: 128,
+					MaxConnsPerHost:     0,
 					TLSClientConfig:     tlsConfig,
 					DisableCompression:  false,
 					ForceAttemptHTTP2:   true,
-				}),
+					// ReadBufferSize:      1,
+					// DialContext: defaultTransportDialContext(&net.Dialer{
+					// 	Timeout:   1 * time.Second,
+					// 	KeepAlive: 300 * time.Second,
+					// 	Resolver: &net.Resolver{
+					// 		PreferGo: true,
+					// 	},
+					// }),
+				},
 			}
 
-			request, err := http.NewRequest("GET", "http://playmytime.com/", nil)
+			request, err := http.NewRequest("GET", "https://playmytime.com/", nil)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 
-			responsePool := sync.Pool{
-				New: func() interface{} {
-					return new(http.Response)
-				},
-			}
+			request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0")
 
 			for i := 1; i < 100; i++ {
-				response := responsePool.Get().(*http.Response)
-
-				response, err = client.Do(request)
+				response, err := client.Do(request)
 				if err != nil {
 					fmt.Println(err)
 					continue
@@ -87,7 +95,7 @@ func main() {
 }
 
 func (m *httpUserAgent) RoundTrip(r *http.Request) (*http.Response, error) {
-	r.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0")
+	// r.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0")
 	return m.inner.RoundTrip(r)
 }
 
