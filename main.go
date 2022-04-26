@@ -30,7 +30,7 @@ func main() {
 	// }
 
 	var wait sync.WaitGroup
-	for k := 0; k < 10; k++ {
+	for k := 0; k < 2000; k++ {
 		wait.Add(1)
 		go func() {
 			// httpUA := &httpUserAgent{}
@@ -43,13 +43,13 @@ func main() {
 			tlsConfig.MinVersion = tls.VersionTLS13
 
 			client := &http.Client{
-				Timeout: 10 * time.Second,
+				Timeout: 1 * time.Second,
 				// Transport: httpUA.httpSetUserAgent(&http.Transport{
 				Transport: &http.Transport{
 					DisableKeepAlives:   false,
 					IdleConnTimeout:     300 * time.Second,
-					MaxIdleConns:        128,
-					MaxIdleConnsPerHost: 128,
+					MaxIdleConns:        12800,
+					MaxIdleConnsPerHost: 12800,
 					MaxConnsPerHost:     0,
 					TLSClientConfig:     tlsConfig,
 					DisableCompression:  false,
@@ -73,7 +73,7 @@ func main() {
 
 			request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:99.0) Gecko/20100101 Firefox/99.0")
 
-			for i := 1; i < 100; i++ {
+			for i := 1; i < 10; i++ {
 				response, err := client.Do(request)
 				if err != nil {
 					fmt.Println(err)
@@ -81,10 +81,12 @@ func main() {
 				}
 				defer response.Body.Close()
 
-				if response.StatusCode != http.StatusOK {
-					fmt.Println(response.Status)
-					continue
-				}
+				fmt.Println(response.Status)
+
+				// _, err = ioutil.ReadAll(response.Body)
+				// if err != nil {
+				// 	fmt.Println(err)
+				// }
 			}
 
 			wait.Done()
